@@ -11,9 +11,7 @@
 ## 安裝流程
 
 * **Step1：** 按下「右上方<font color="green">Code</font>」→ 「Download ZIP」→ 並解壓縮
-* **Step2：** 打開「終端機」 → 並輸入以下2行
-    1. `pip install --upgrade selenium`
-    2. `pip install --upgrade undetected_chromedriver`
+* **Step2：** 打開「終端機」 → 並輸入 `pip install -r requirements.txt` 安裝套件
 * **Step3：** 打開解壓縮的「資料夾」 → 找到「Tickets.py」並打開
 * **Step4：** 即可開始使用「Tickets」！
 
