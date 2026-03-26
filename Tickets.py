@@ -3,19 +3,32 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.select import Select
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import TimeoutException, NoSuchElementException, ElementClickInterceptedException
 import undetected_chromedriver as uc
 import certifi
 import os
+import time
 
 os.environ["SSL_CERT_FILE"] = certifi.where()  # uc.Chrome() 需要
 
 
 def get_user_input():
     """獲取使用者輸入的搶票資訊"""
-    print("\n======= 拓元搶票輔助神器 =======")
+    print(r"""
+    ████████╗██╗██╗  ██╗ ██████╗██████╗  █████╗ ███████╗████████╗
+    ╚══██╔══╝██║╚██╗██╔╝██╔════╝██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
+       ██║   ██║ ╚███╔╝ ██║     ██████╔╝███████║█████╗     ██║
+       ██║   ██║ ██╔██╗ ██║     ██╔══██╗██╔══██║██╔══╝     ██║
+       ██║   ██║██╔╝ ██╗╚██████╗██║  ██║██║  ██║██║        ██║
+       ╚═╝   ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝        ╚═╝
+     =================  🎫 拓元搶票輔助神器  =================
+    """)
     url = input("[Input] 輸入「搶票連結」：")
-    choose_times = int(input("[Input] 輸入「第x天」："))
+    try:
+        choose_times = int(input("[Input] 輸入「第x場次」："))
+    except ValueError:
+        print("[Error] 請輸入有效的數字")
+        exit(1)
     choose_seat = input("[Input] 輸入「座位」：")
     ticket_num = input("[Input] 輸入「張數」：")
     return url, choose_times, choose_seat, ticket_num
@@ -54,8 +67,15 @@ def wait_for_login(driver, url):
 
 def scroll_to_element(driver, element):
     """滾動到指定元素位置"""
-    y_position = element.location['y'] - 400
+    # 取得當前視窗的高度
+    window_height = driver.execute_script("return window.innerHeight;")
+    # 將元素放置在視窗下方約 1/4 處
+    y_position = element.location['y'] - (window_height // 4 * 3)
+    
     driver.execute_script(f"window.scrollTo(0, {y_position})")
+    
+    # 稍微等待滾動動畫完成與內部渲染
+    time.sleep(0.5)
 
 
 def click_buy_button(driver):
@@ -103,13 +123,12 @@ def select_show_time(driver, choose_times):
         
         # 找出指定場次的「立即訂購」按鈕
         target_row = tr_elements[choose_times]
-        td_elements = target_row.find_elements(By.TAG_NAME, "td")
         
-        if len(td_elements) <= 3:
-            raise NoSuchElementException(f"場次 {choose_times} 的 td 元素數量不足")
-        
-        # 等待按鈕可點擊
-        order_button = wait.until(EC.element_to_be_clickable(td_elements[3].find_element(By.TAG_NAME, "button")))
+        # 滾動到指定的場次位置
+        scroll_to_element(driver, target_row)
+
+        # 直接從 target_row 尋找 button 並等待可點擊
+        order_button = wait.until(EC.element_to_be_clickable(target_row.find_element(By.TAG_NAME, "button")))
         order_button.click()
         print(f"[Execute] 已選擇第 {choose_times} 天的場次")
         
@@ -145,11 +164,11 @@ def select_seat(driver, choose_seat):
                 rows = area.find_elements(By.TAG_NAME, "li")
                 
                 for seat_element in rows:
+                    choose_seat = choose_seat.strip()
                     if choose_seat in seat_element.text:
                         # 檢查座位是否可選
                         if seat_element.get_attribute("class") == "":
-                            print(f"[Error] 該座位已售完：{seat_element.text}")
-                            raise ValueError(f"座位 {choose_seat} 已售完")
+                            raise ValueError(f"該座位已售完： {seat_element.text} 已售完")
                         
                         # 滾動到座位位置
                         scroll_to_element(driver, seat_element)
@@ -201,6 +220,9 @@ def select_ticket_count(driver, ticket_num):
     except TimeoutException:
         print("[Error] 等待票數選單或同意按鈕超時")
         raise
+    except ElementClickInterceptedException:
+        print("[Error] 無法點擊同意checkBox，可能被其他元素遮擋")
+        print("[Tips] 請自行點擊同意checkBox！")
     except Exception as e:
         print(f"[Error] 選擇票數時發生錯誤: \n{type(e).__name__} - {str(e)}")
         raise
@@ -281,7 +303,7 @@ def main():
     except KeyboardInterrupt:
         print("\n\n[Stop] 使用者中斷程式")
     except Exception as e:
-        print(f"\n\n[Error] 程式執行時發生嚴重錯誤: \n{type(e).__name__} - {str(e)}")
+        print(f"\n\n[Error] 程式執行時發生錯誤: \n{type(e).__name__} - {str(e)}")
     finally:
         if driver:
             driver.quit()
